@@ -129,7 +129,7 @@ Each receipt is a completely independent instance identified by an 8-character n
 
 ## To Fix
 
-- [ ] More members than defined limit can join
+- [x] More members than defined limit can join
 - [x] Can't add items more than the total amount on the bill
 
 ## TODO
