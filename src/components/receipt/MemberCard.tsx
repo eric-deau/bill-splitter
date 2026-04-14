@@ -50,7 +50,7 @@ export function MemberCard({
     const errors: Partial<AddItemForm> = {}
     if (!form.name.trim()) errors.name = 'Item name required'
     const price = parseFloat(form.price)
-    if (!form.price || isNaN(price) || price < 0) errors.price = 'Valid price required'
+    if (!form.price || isNaN(price) || price < 0 || price >= receipt.grand_total || (price * Number(form.quantity)) > receipt.grand_total) errors.price = 'Valid price required'
     if (Object.keys(errors).length) { setFormErrors(errors); return }
 
     setSubmitting(true)

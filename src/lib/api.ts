@@ -27,13 +27,14 @@ function emptyConfig(): SplitConfig {
 }
 
 function buildSummary(receipt: Receipt, members: Member[], items: LineItem[]): ReceiptSummary {
-  const total = receipt.total
+  const total = receipt.grand_total ?? receipt.total  // fall back for old rows
   const mode = receipt.split_mode ?? 'equal'
   const config: SplitConfig = receipt.split_config ?? emptyConfig()
   const overrides = config.overrides ?? {}
   const memberCount = members.length || 1
   const evenSplit = total / memberCount
 
+  // Step 1: raw item subtotals per member
   const subtotals = new Map<string, number>()
   for (const m of members) {
     const memberItems = items.filter((it) => it.member_id === m.id)
@@ -45,8 +46,25 @@ function buildSummary(receipt: Receipt, members: Member[], items: LineItem[]): R
 
   switch (mode) {
     case 'equal': {
-      amountDues = new Map(members.map((m) => [m.id, evenSplit]))
-      splitLabels = new Map(members.map((m) => [m.id, `1/${memberCount} share`]))
+      // Item-aware equal split:
+      // 1. Each person "claims" their item subtotal.
+      // 2. The remainder (total - all subtotals) is split evenly.
+      // 3. amount_due = subtotal + equal share of remainder.
+      // If items exceed the bill total we clamp remainder to 0 (over-entry scenario).
+      const totalItemsValue = Array.from(subtotals.values()).reduce((s, v) => s + v, 0)
+      const remainder = Math.max(0, total - totalItemsValue)
+      const remainderPerPerson = remainder / memberCount
+
+      amountDues = new Map()
+      splitLabels = new Map()
+      for (const m of members) {
+        const sub = subtotals.get(m.id) ?? 0
+        const due = sub + remainderPerPerson
+        amountDues.set(m.id, due)
+        const itemsPart = sub > 0 ? `${formatCurrencyRaw(sub)} items` : null
+        const sharePart = remainderPerPerson > 0 ? `${formatCurrencyRaw(remainderPerPerson)} share` : null
+        splitLabels.set(m.id, [itemsPart, sharePart].filter(Boolean).join(' + ') || `1/${memberCount} share`)
+      }
       break
     }
     case 'items': {
@@ -118,28 +136,41 @@ function buildSummary(receipt: Receipt, members: Member[], items: LineItem[]): R
   }
 }
 
+/** Lightweight formatter used inside buildSummary (no Intl overhead per call) */
+function formatCurrencyRaw(n: number): string {
+  return '$' + n.toFixed(2)
+}
+
 // ─── Receipts ─────────────────────────────────────────────────────────────────
 
 export async function createReceipt(
   form: CreateReceiptForm,
   hostUserId: string | null
 ): Promise<Receipt> {
-  const total = parseFloat(form.total) || 0
-  const tax = parseFloat(form.tax) || 0
-  const tip = parseFloat(form.tip) || 0
+  const subtotal = parseFloat(form.total) || 0
   const peopleCount = parseInt(form.people_count) || 2
   const isGuest = hostUserId === null
   const slug = nanoid(8)
   const expiresAt = isGuest ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null
+
+  // Resolve tax and tip to flat dollar amounts
+  const taxRaw = parseFloat(form.tax) || 0
+  const tipRaw = parseFloat(form.tip) || 0
+  const taxFlat = form.tax_type === 'percent' ? (taxRaw / 100) * subtotal : taxRaw
+  const tipFlat = form.tip_type === 'percent' ? (tipRaw / 100) * subtotal : tipRaw
+  const grandTotal = subtotal + taxFlat + tipFlat
 
   const { data, error } = await supabase
     .from('receipts')
     .insert({
       slug,
       name: form.name.trim(),
-      total,
-      tax,
-      tip,
+      total: subtotal,
+      tax: taxFlat,
+      tax_type: form.tax_type,
+      tip: tipFlat,
+      tip_type: form.tip_type,
+      grand_total: grandTotal,
       etransfer_email: form.etransfer_email.trim(),
       etransfer_note: form.etransfer_note.trim() || null,
       people_count: peopleCount,
