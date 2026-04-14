@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-cream-50 text-ink-900;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  * {
+    @apply border-ink-100;
+  }
+
+  /* Smooth number transitions in font-mono elements */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Stagger animation helper classes */
+  .animate-delay-100 { animation-delay: 100ms; }
+  .animate-delay-200 { animation-delay: 200ms; }
+  .animate-delay-300 { animation-delay: 300ms; }
+  .animate-delay-400 { animation-delay: 400ms; }
+}
+
+/* Checkbox styling */
+input[type='checkbox'] {
+  @apply rounded border-ink-200 text-sage-600 focus:ring-sage-500 focus:ring-offset-0;
+}
+
+/* Number input: hide spinners */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
