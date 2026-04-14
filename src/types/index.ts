@@ -40,13 +40,18 @@ export const SPLIT_MODE_DESCRIPTIONS: Record<SplitMode, string> = {
   shares:     'Assign weighted shares — e.g. someone gets a double portion',
 }
 
+export type TaxTipType = 'flat' | 'percent'
+
 export interface Receipt {
   id: string
   slug: string                   // short shareable ID in the URL
   name: string
-  total: number                  // bill total in dollars
-  tax: number                    // optional tax amount
-  tip: number                    // optional tip amount
+  total: number                  // subtotal entered by host (before tax/tip)
+  tax: number                    // tax amount in dollars (after resolving percent → flat)
+  tax_type: TaxTipType           // whether tax was entered as flat $ or %
+  tip: number                    // tip amount in dollars (after resolving percent → flat)
+  tip_type: TaxTipType           // whether tip was entered as flat $ or %
+  grand_total: number            // total + tax + tip — what members actually split
   etransfer_email: string
   etransfer_note: string | null
   people_count: number           // initial even-split denominator
@@ -104,12 +109,14 @@ export interface CreateReceiptForm {
   name: string
   total: string
   tax: string
+  tax_type: TaxTipType           // 'flat' | 'percent'
   tip: string
+  tip_type: TaxTipType           // 'flat' | 'percent'
   etransfer_email: string
   etransfer_note: string
   people_count: string
   host_name: string
-  save_account: boolean          // true = prompt sign-up after creation
+  save_account: boolean
 }
 
 export interface AddItemForm {
