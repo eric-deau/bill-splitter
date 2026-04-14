@@ -125,6 +125,7 @@ Each receipt is a completely independent instance identified by an 8-character n
 - [ ] Push notifications when someone joins
 - [ ] Upgrade guest receipt to account post-creation
 - [ ] Account settings for changing email, password
+- [ ] Cookie sessions
 
 ## To Fix
 
