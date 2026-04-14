@@ -30,10 +30,15 @@ export function AddMemberModal({
   const handleSubmit = async () => {
     const trimmed = name.trim()
     if (!trimmed) { setError('Name is required'); return }
+    if (existingMembers.length >= receipt.people_count) {
+      setError('Maximum number of people joined already.')
+      return;
+    };
     if (existingMembers.some((m) => m.name.toLowerCase() === trimmed.toLowerCase())) {
       setError('That name is already in this receipt')
-      return
+      return;
     }
+    
     setSubmitting(true)
     try {
       await addMember(
