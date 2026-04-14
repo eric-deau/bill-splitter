@@ -126,4 +126,9 @@ Each receipt is a completely independent instance identified by an 8-character n
 - [ ] Upgrade guest receipt to account post-creation
 
 ## To Fix
+
 - [ ] More members than defined limit can join
+
+## TODO
+
+- [ ] Add logic for when users add items in equal split mode, adjust the costs of what other users owe
