@@ -119,8 +119,11 @@ Each receipt is a completely independent instance identified by an 8-character n
 
 ## Next Steps
 
-- [ ] Host-only delete controls for members/items
+- [x] Host-only delete controls for members/items
 - [ ] Unequal split modes (percentage, custom amounts)
 - [ ] Receipt export to PDF
 - [ ] Push notifications when someone joins
 - [ ] Upgrade guest receipt to account post-creation
+
+## To Fix
+- [ ] More members than defined limit can join
