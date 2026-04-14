@@ -2,6 +2,44 @@
 
 export type ReceiptStatus = 'open' | 'settled' | 'expired'
 
+// ─── Split modes ──────────────────────────────────────────────────────────────
+
+/** How the bill total is divided among members */
+export type SplitMode =
+  | 'equal'       // total / member count — default
+  | 'items'       // each person pays exactly what they ordered
+  | 'percentage'  // host assigns a % per member (must sum to 100)
+  | 'fixed'       // host sets a fixed dollar amount per member
+  | 'shares'      // host assigns weight multipliers; total split proportionally
+
+/** Per-member configuration stored in receipts.split_config (JSON) */
+export interface SplitConfig {
+  /** Keyed by member ID */
+  overrides: Record<string, MemberSplitOverride>
+}
+
+export interface MemberSplitOverride {
+  percentage?: number   // 0–100; used in 'percentage' mode
+  fixed?: number        // dollar amount; used in 'fixed' mode
+  shares?: number       // weight multiplier (default 1); used in 'shares' mode
+}
+
+export const SPLIT_MODE_LABELS: Record<SplitMode, string> = {
+  equal:      'Equal split',
+  items:      'By items',
+  percentage: 'Percentage',
+  fixed:      'Fixed amount',
+  shares:     'Shares',
+}
+
+export const SPLIT_MODE_DESCRIPTIONS: Record<SplitMode, string> = {
+  equal:      'Total divided evenly among all members',
+  items:      'Each person pays only for what they ordered',
+  percentage: 'Assign a percentage of the total to each person',
+  fixed:      'Set a specific dollar amount per person',
+  shares:     'Assign weighted shares — e.g. someone gets a double portion',
+}
+
 export interface Receipt {
   id: string
   slug: string                   // short shareable ID in the URL
@@ -13,6 +51,8 @@ export interface Receipt {
   etransfer_note: string | null
   people_count: number           // initial even-split denominator
   status: ReceiptStatus
+  split_mode: SplitMode          // active split mode
+  split_config: SplitConfig      // per-member overrides for non-equal modes
   host_user_id: string | null    // null = guest receipt
   host_name: string
   expires_at: string | null      // ISO string; null = authenticated (no expiry)
@@ -43,18 +83,19 @@ export interface LineItem {
 
 export interface MemberWithItems extends Member {
   items: LineItem[]
-  subtotal: number
-  // how much they owe: their subtotal, or even split if no items
-  amount_due: number
+  subtotal: number        // sum of their line items
+  amount_due: number      // what they actually owe under the active split mode
+  split_label: string     // human-readable breakdown shown on card (e.g. "40%" or "2 shares")
 }
 
 export interface ReceiptSummary {
   receipt: Receipt
   members: MemberWithItems[]
   subtotal_assigned: number      // sum of all line items
-  subtotal_unassigned: number    // receipt.total - assigned
-  even_split: number             // receipt.total / people_count
-  is_balanced: boolean           // unassigned < 0.01
+  subtotal_unassigned: number    // receipt.total - sum of amount_due
+  even_split: number             // receipt.total / member count (reference)
+  is_balanced: boolean           // all amount_due sum within $0.01 of receipt.total
+  split_remainder: number        // for 'percentage' and 'fixed': difference from total
 }
 
 // ─── Form types ────────────────────────────────────────────────────────────────

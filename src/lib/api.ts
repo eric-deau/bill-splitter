@@ -9,7 +9,9 @@ import type {
   MemberWithItems,
   ReceiptSummary,
   MemberColor,
-  MEMBER_COLORS,
+  SplitMode,
+  SplitConfig,
+  MemberSplitOverride,
 } from '@/types'
 import { MEMBER_COLORS as COLORS } from '@/types'
 import { nanoid } from 'nanoid'
@@ -20,30 +22,99 @@ function pickColor(index: number): MemberColor {
   return COLORS[index % COLORS.length]
 }
 
+function emptyConfig(): SplitConfig {
+  return { overrides: {} }
+}
+
 function buildSummary(receipt: Receipt, members: Member[], items: LineItem[]): ReceiptSummary {
-  const evenSplit = receipt.total / receipt.people_count
+  const total = receipt.total
+  const mode = receipt.split_mode ?? 'equal'
+  const config: SplitConfig = receipt.split_config ?? emptyConfig()
+  const overrides = config.overrides ?? {}
+  const memberCount = members.length || 1
+  const evenSplit = total / memberCount
+
+  const subtotals = new Map<string, number>()
+  for (const m of members) {
+    const memberItems = items.filter((it) => it.member_id === m.id)
+    subtotals.set(m.id, memberItems.reduce((sum, it) => sum + it.price * it.quantity, 0))
+  }
+
+  let amountDues: Map<string, number>
+  let splitLabels: Map<string, string>
+
+  switch (mode) {
+    case 'equal': {
+      amountDues = new Map(members.map((m) => [m.id, evenSplit]))
+      splitLabels = new Map(members.map((m) => [m.id, `1/${memberCount} share`]))
+      break
+    }
+    case 'items': {
+      amountDues = new Map(members.map((m) => [m.id, subtotals.get(m.id) ?? 0]))
+      splitLabels = new Map(members.map((m) => [m.id, 'items only']))
+      break
+    }
+    case 'percentage': {
+      amountDues = new Map()
+      splitLabels = new Map()
+      for (const m of members) {
+        const pct = overrides[m.id]?.percentage ?? (100 / memberCount)
+        amountDues.set(m.id, (pct / 100) * total)
+        splitLabels.set(m.id, `${pct.toFixed(1)}%`)
+      }
+      break
+    }
+    case 'fixed': {
+      amountDues = new Map()
+      splitLabels = new Map()
+      for (const m of members) {
+        const fixed = overrides[m.id]?.fixed ?? evenSplit
+        amountDues.set(m.id, fixed)
+        splitLabels.set(m.id, 'fixed')
+      }
+      break
+    }
+    case 'shares': {
+      const totalShares = members.reduce((sum, m) => sum + (overrides[m.id]?.shares ?? 1), 0) || 1
+      amountDues = new Map()
+      splitLabels = new Map()
+      for (const m of members) {
+        const shares = overrides[m.id]?.shares ?? 1
+        amountDues.set(m.id, (shares / totalShares) * total)
+        splitLabels.set(m.id, `${shares}x share`)
+      }
+      break
+    }
+    default: {
+      amountDues = new Map(members.map((m) => [m.id, evenSplit]))
+      splitLabels = new Map(members.map((m) => [m.id, '']))
+    }
+  }
 
   const membersWithItems: MemberWithItems[] = members.map((m) => {
     const memberItems = items.filter((it) => it.member_id === m.id)
-    const subtotal = memberItems.reduce((sum, it) => sum + it.price * it.quantity, 0)
+    const subtotal = subtotals.get(m.id) ?? 0
     return {
       ...m,
       items: memberItems,
       subtotal,
-      amount_due: subtotal,
+      amount_due: amountDues.get(m.id) ?? 0,
+      split_label: splitLabels.get(m.id) ?? '',
     }
   })
 
+  const totalAmountDue = membersWithItems.reduce((s, m) => s + m.amount_due, 0)
   const subtotalAssigned = membersWithItems.reduce((s, m) => s + m.subtotal, 0)
-  const subtotalUnassigned = Math.max(0, receipt.total - subtotalAssigned)
+  const splitRemainder = total - totalAmountDue
 
   return {
     receipt,
     members: membersWithItems,
     subtotal_assigned: subtotalAssigned,
-    subtotal_unassigned: subtotalUnassigned,
+    subtotal_unassigned: Math.abs(splitRemainder),
     even_split: evenSplit,
-    is_balanced: subtotalUnassigned < 0.01,
+    is_balanced: Math.abs(splitRemainder) < 0.01,
+    split_remainder: splitRemainder,
   }
 }
 
@@ -58,11 +129,8 @@ export async function createReceipt(
   const tip = parseFloat(form.tip) || 0
   const peopleCount = parseInt(form.people_count) || 2
   const isGuest = hostUserId === null
-
   const slug = nanoid(8)
-  const expiresAt = isGuest
-    ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-    : null
+  const expiresAt = isGuest ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null
 
   const { data, error } = await supabase
     .from('receipts')
@@ -76,6 +144,8 @@ export async function createReceipt(
       etransfer_note: form.etransfer_note.trim() || null,
       people_count: peopleCount,
       status: 'open',
+      split_mode: 'equal',
+      split_config: emptyConfig(),
       host_user_id: hostUserId,
       host_name: form.host_name.trim(),
       expires_at: expiresAt,
@@ -86,9 +156,7 @@ export async function createReceipt(
   if (error) throw new Error(error.message)
   if (!data) throw new Error('No receipt returned')
 
-  // Auto-add host as first member
   await addMember(data.id, { name: form.host_name.trim() }, hostUserId, 0)
-
   return data
 }
 
@@ -129,6 +197,42 @@ export async function settleReceipt(receiptId: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+// ─── Split mode ───────────────────────────────────────────────────────────────
+
+export async function updateSplitMode(
+  receiptId: string,
+  mode: SplitMode,
+  currentConfig: SplitConfig
+): Promise<void> {
+  const { error } = await supabase
+    .from('receipts')
+    .update({ split_mode: mode, split_config: currentConfig })
+    .eq('id', receiptId)
+
+  if (error) throw new Error(error.message)
+}
+
+export async function updateMemberSplitOverride(
+  receiptId: string,
+  memberId: string,
+  override: MemberSplitOverride,
+  currentConfig: SplitConfig
+): Promise<void> {
+  const nextConfig: SplitConfig = {
+    overrides: {
+      ...currentConfig.overrides,
+      [memberId]: { ...currentConfig.overrides[memberId], ...override },
+    },
+  }
+
+  const { error } = await supabase
+    .from('receipts')
+    .update({ split_config: nextConfig })
+    .eq('id', receiptId)
+
+  if (error) throw new Error(error.message)
+}
+
 // ─── Members ──────────────────────────────────────────────────────────────────
 
 export async function addMember(
@@ -154,7 +258,6 @@ export async function addMember(
 }
 
 export async function removeMember(memberId: string): Promise<void> {
-  // Cascade deletes line_items automatically via FK
   const { error } = await supabase.from('members').delete().eq('id', memberId)
   if (error) throw new Error(error.message)
 }
@@ -193,27 +296,12 @@ export async function removeLineItem(itemId: string): Promise<void> {
 
 // ─── Realtime subscription ────────────────────────────────────────────────────
 
-export function subscribeToReceipt(
-  receiptId: string,
-  onUpdate: () => void
-) {
+export function subscribeToReceipt(receiptId: string, onUpdate: () => void) {
   const channel = supabase
     .channel(`receipt:${receiptId}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'members', filter: `receipt_id=eq.${receiptId}` },
-      onUpdate
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'line_items', filter: `receipt_id=eq.${receiptId}` },
-      onUpdate
-    )
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'receipts', filter: `id=eq.${receiptId}` },
-      onUpdate
-    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'members', filter: `receipt_id=eq.${receiptId}` }, onUpdate)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'line_items', filter: `receipt_id=eq.${receiptId}` }, onUpdate)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'receipts', filter: `id=eq.${receiptId}` }, onUpdate)
     .subscribe()
 
   return () => supabase.removeChannel(channel)

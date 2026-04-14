@@ -35,11 +35,11 @@ export function MemberCard({
   const [removingMember, setRemovingMember] = useState(false)
   const [confirmRemoveMember, setConfirmRemoveMember] = useState(false)
 
-  const diff = member.subtotal - evenSplit
-  const isOver = diff > 0.01
-  const isUnder = diff < -0.01
-  const isEven = !isOver && !isUnder
   const isSettled = receipt.status === 'settled'
+  const splitMode = receipt.split_mode ?? 'equal'
+  // In 'items' mode show the item subtotal; otherwise show the computed amount_due
+  const displayDue = member.amount_due
+  const showItemsSubtotal = splitMode === 'items'
 
   const set = (field: keyof AddItemForm) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }))
@@ -109,25 +109,18 @@ export function MemberCard({
             </span>
             {member.isHost && <Badge variant="success">Host</Badge>}
           </div>
-          <p className={cn(
-            'text-xs font-body mt-0.5',
-            isOver ? 'text-rose-500' : isUnder ? 'text-ink-400' : 'text-sage-600'
-          )}>
-            {isEven
-              ? 'At even split'
-              : isOver
-              ? `+${formatCurrency(diff)} over even split`
-              : `${formatCurrency(diff)} under even split`}
+          <p className="text-xs text-ink-400 font-body mt-0.5">
+            {member.split_label || 'no items'}
           </p>
         </div>
 
         <div className="text-right shrink-0">
           <p className="font-mono font-medium text-ink-900 text-sm">
-            {formatCurrency(member.subtotal)}
+            {formatCurrency(displayDue)}
           </p>
-          <p className="text-xs text-ink-400 font-body">
-            of {formatCurrency(evenSplit)}
-          </p>
+          {showItemsSubtotal && member.subtotal !== displayDue && (
+            <p className="text-xs text-ink-400 font-body">items: {formatCurrency(member.subtotal)}</p>
+          )}
         </div>
 
         {/* Host-only: remove member button — never shown for the host themselves */}

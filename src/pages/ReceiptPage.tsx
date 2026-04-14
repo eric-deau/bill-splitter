@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { ReceiptSummaryBar } from '@/components/receipt/ReceiptSummaryBar'
 import { MemberCard } from '@/components/receipt/MemberCard'
 import { AddMemberModal } from '@/components/receipt/AddMemberModal'
+import { SplitModePanel } from '@/components/receipt/SplitModePanel'
 import { Button } from '@/components/ui/Button'
 import { toast } from '@/components/ui/Toast'
 import { settleReceipt } from '@/lib/api'
@@ -89,6 +90,15 @@ export function ReceiptPage() {
         isHost={isHost}
         onSettle={handleSettle}
       />
+
+      {/* Host-only: split mode configuration */}
+      {isHost && receipt.status === 'open' && (
+        <SplitModePanel
+          receipt={receipt}
+          members={visibleMembers}
+          onUpdate={refetch}
+        />
+      )}
 
       {/* Members section */}
       <div>

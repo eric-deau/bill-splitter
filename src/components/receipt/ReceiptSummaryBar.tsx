@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { toast } from '@/components/ui/Toast'
 import { formatCurrency, timeUntilExpiry, cn } from '@/lib/utils'
-import type { ReceiptSummary } from '@/types'
+import { SPLIT_MODE_LABELS, type ReceiptSummary } from '@/types'
 
 interface ReceiptSummaryBarProps {
   summary: ReceiptSummary
@@ -12,10 +12,13 @@ interface ReceiptSummaryBarProps {
 }
 
 export function ReceiptSummaryBar({ summary, onSettle, isHost }: ReceiptSummaryBarProps) {
-  const { receipt, subtotal_assigned, subtotal_unassigned, even_split, is_balanced } = summary
+  const { receipt, subtotal_assigned, is_balanced, even_split, split_remainder, members } = summary
   const [copied, setCopied] = useState(false)
 
   const shareUrl = window.location.href
+  const totalAmountDue = members.reduce((s, m) => s + m.amount_due, 0)
+  const progressPct = Math.min(100, (totalAmountDue / receipt.total) * 100)
+  const isOver = totalAmountDue > receipt.total + 0.01
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(shareUrl)
@@ -23,9 +26,6 @@ export function ReceiptSummaryBar({ summary, onSettle, isHost }: ReceiptSummaryB
     toast.success('Link copied!')
     setTimeout(() => setCopied(false), 2000)
   }
-
-  const progressPct = Math.min(100, (subtotal_assigned / receipt.total) * 100)
-  const isOver = subtotal_assigned > receipt.total + 0.01
 
   return (
     <div className="bg-white border border-ink-100 rounded-2xl shadow-soft p-5 space-y-4">
@@ -36,6 +36,9 @@ export function ReceiptSummaryBar({ summary, onSettle, isHost }: ReceiptSummaryB
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <Badge variant={receipt.status === 'open' ? 'success' : receipt.status === 'settled' ? 'info' : 'danger'}>
               {receipt.status}
+            </Badge>
+            <Badge variant="default">
+              {SPLIT_MODE_LABELS[receipt.split_mode]}
             </Badge>
             {receipt.expires_at && (
               <span className="text-xs text-ink-400 font-body">
@@ -68,12 +71,18 @@ export function ReceiptSummaryBar({ summary, onSettle, isHost }: ReceiptSummaryB
       {/* Totals grid */}
       <div className="grid grid-cols-3 gap-3">
         <StatCell label="Bill total" value={formatCurrency(receipt.total)} />
-        <StatCell label="Assigned" value={formatCurrency(subtotal_assigned)} highlight={is_balanced} />
         <StatCell
-          label="Unassigned"
-          value={formatCurrency(subtotal_unassigned)}
+          label="Total assigned"
+          value={formatCurrency(totalAmountDue)}
+          highlight={is_balanced}
+          warn={isOver}
+        />
+        <StatCell
+          label={isOver ? 'Over by' : 'Remaining'}
+          value={formatCurrency(Math.abs(split_remainder))}
           muted={is_balanced}
-          warn={subtotal_unassigned > 0.01}
+          warn={!is_balanced && isOver}
+          alert={!is_balanced && split_remainder > 0.01}
         />
       </div>
 
@@ -89,8 +98,12 @@ export function ReceiptSummaryBar({ summary, onSettle, isHost }: ReceiptSummaryB
           />
         </div>
         <div className="flex justify-between text-xs text-ink-400 font-body">
-          <span>Even split: {formatCurrency(even_split)} / person</span>
-          <span>{Math.round(progressPct)}% assigned</span>
+          <span>
+            {receipt.split_mode === 'equal'
+              ? `Even split: ${formatCurrency(even_split)} / person`
+              : `${SPLIT_MODE_LABELS[receipt.split_mode]} · ${members.length} people`}
+          </span>
+          <span>{Math.round(progressPct)}% allocated</span>
         </div>
       </div>
     </div>
@@ -103,19 +116,25 @@ function StatCell({
   highlight,
   muted,
   warn,
+  alert,
 }: {
   label: string
   value: string
   highlight?: boolean
   muted?: boolean
   warn?: boolean
+  alert?: boolean
 }) {
   return (
     <div className="bg-cream-50 rounded-xl p-3">
       <p className="text-xs text-ink-400 font-body mb-1">{label}</p>
       <p className={cn(
         'font-mono text-sm font-medium',
-        highlight ? 'text-sage-700' : warn ? 'text-amber-600' : muted ? 'text-ink-300' : 'text-ink-900'
+        highlight ? 'text-sage-700'
+        : warn ? 'text-rose-500'
+        : alert ? 'text-amber-600'
+        : muted ? 'text-ink-300'
+        : 'text-ink-900'
       )}>
         {value}
       </p>
