@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { User, Session } from '@supabase/supabase-js'
+import type { User, Session, Provider } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
 interface AuthContextValue {
@@ -13,14 +13,13 @@ interface AuthContextValue {
   session: Session | null
   loading: boolean
   isAuthenticated: boolean
-  // Auth actions
+  isRecoverySession: boolean
   signUp: (email: string, password: string) => Promise<void>
   signIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>
+  signInWithOAuth: (provider: Provider) => Promise<void>
   signOut: () => Promise<void>
   sendPasswordReset: (email: string) => Promise<void>
   updatePassword: (newPassword: string) => Promise<void>
-  // Password recovery state — true when Supabase has emitted PASSWORD_RECOVERY
-  isRecoverySession: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -32,7 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isRecoverySession, setIsRecoverySession] = useState(false)
 
   useEffect(() => {
-    // Restore session from localStorage on mount (Supabase persists by default)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
@@ -42,7 +40,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
-      // Supabase fires this event when the user clicks the reset-password link
       if (event === 'PASSWORD_RECOVERY') {
         setIsRecoverySession(true)
       } else if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
@@ -58,33 +55,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(error.message)
   }
 
-  /**
-   * rememberMe — when true (default) the session is persisted in localStorage
-   * and survives browser restarts. When false, it only lives for the tab session.
-   * Supabase JS v2 always uses localStorage by default, so we control this by
-   * explicitly calling signOut() and using session expiry.
-   */
   const signIn = async (email: string, password: string, rememberMe = true) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw new Error(error.message)
-
     if (!rememberMe && data.session) {
-      // Write a flag so we know to clear on tab close
-      sessionStorage.setItem('divvy_session_only', '1')
+      sessionStorage.setItem('iou_session_only', '1')
     } else {
-      sessionStorage.removeItem('divvy_session_only')
+      sessionStorage.removeItem('iou_session_only')
     }
+  }
+
+  /**
+   * Initiates an OAuth redirect flow. Supabase handles the popup/redirect;
+   * the user lands back on /auth/callback where the session is exchanged.
+   */
+  const signInWithOAuth = async (provider: Provider) => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          // Request offline access from Google so the refresh token is issued
+          ...(provider === 'google' ? { access_type: 'offline', prompt: 'consent' } : {}),
+        },
+      },
+    })
+    if (error) throw new Error(error.message)
+    // After this call the browser redirects — no further client code runs
   }
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
-    sessionStorage.removeItem('divvy_session_only')
+    sessionStorage.removeItem('iou_session_only')
     if (error) throw new Error(error.message)
   }
 
   const sendPasswordReset = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      // Supabase will append ?token=... — this is where the user lands after clicking the link
       redirectTo: `${window.location.origin}/auth/reset-password`,
     })
     if (error) throw new Error(error.message)
@@ -97,20 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        loading,
-        isAuthenticated: !!user,
-        signUp,
-        signIn,
-        signOut,
-        sendPasswordReset,
-        updatePassword,
-        isRecoverySession,
-      }}
-    >
+    <AuthContext.Provider value={{
+      user, session, loading, isAuthenticated: !!user, isRecoverySession,
+      signUp, signIn, signInWithOAuth, signOut, sendPasswordReset, updatePassword,
+    }}>
       {children}
     </AuthContext.Provider>
   )
@@ -121,3 +118,102 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within <AuthProvider>')
   return ctx
 }
+
+// const AuthContext = createContext<AuthContextValue | null>(null)
+
+// export function AuthProvider({ children }: { children: ReactNode }) {
+//   const [user, setUser] = useState<User | null>(null)
+//   const [session, setSession] = useState<Session | null>(null)
+//   const [loading, setLoading] = useState(true)
+//   const [isRecoverySession, setIsRecoverySession] = useState(false)
+
+//   useEffect(() => {
+//     // Restore session from localStorage on mount (Supabase persists by default)
+//     supabase.auth.getSession().then(({ data: { session } }) => {
+//       setSession(session)
+//       setUser(session?.user ?? null)
+//       setLoading(false)
+//     })
+
+//     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+//       setSession(session)
+//       setUser(session?.user ?? null)
+//       // Supabase fires this event when the user clicks the reset-password link
+//       if (event === 'PASSWORD_RECOVERY') {
+//         setIsRecoverySession(true)
+//       } else if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+//         setIsRecoverySession(false)
+//       }
+//     })
+
+//     return () => subscription.unsubscribe()
+//   }, [])
+
+  // const signUp = async (email: string, password: string) => {
+  //   const { error } = await supabase.auth.signUp({ email, password })
+  //   if (error) throw new Error(error.message)
+  // }
+
+  /**
+   * rememberMe — when true (default) the session is persisted in localStorage
+   * and survives browser restarts. When false, it only lives for the tab session.
+   * Supabase JS v2 always uses localStorage by default, so we control this by
+   * explicitly calling signOut() and using session expiry.
+   */
+  // const signIn = async (email: string, password: string, rememberMe = true) => {
+  //   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  //   if (error) throw new Error(error.message)
+
+  //   if (!rememberMe && data.session) {
+  //     // Write a flag so we know to clear on tab close
+  //     sessionStorage.setItem('divvy_session_only', '1')
+  //   } else {
+  //     sessionStorage.removeItem('divvy_session_only')
+  //   }
+  // }
+
+  // const signOut = async () => {
+  //   const { error } = await supabase.auth.signOut()
+  //   sessionStorage.removeItem('divvy_session_only')
+  //   if (error) throw new Error(error.message)
+  // }
+
+//   const sendPasswordReset = async (email: string) => {
+//     const { error } = await supabase.auth.resetPasswordForEmail(email, {
+//       // Supabase will append ?token=... — this is where the user lands after clicking the link
+//       redirectTo: `${window.location.origin}/auth/reset-password`,
+//     })
+//     if (error) throw new Error(error.message)
+//   }
+
+//   const updatePassword = async (newPassword: string) => {
+//     const { error } = await supabase.auth.updateUser({ password: newPassword })
+//     if (error) throw new Error(error.message)
+//     setIsRecoverySession(false)
+//   }
+
+//   return (
+//     <AuthContext.Provider
+//       value={{
+//         user,
+//         session,
+//         loading,
+//         isAuthenticated: !!user,
+//         signUp,
+//         signIn,
+//         signOut,
+//         sendPasswordReset,
+//         updatePassword,
+//         isRecoverySession,
+//       }}
+//     >
+//       {children}
+//     </AuthContext.Provider>
+//   )
+// }
+
+// export function useAuth() {
+//   const ctx = useContext(AuthContext)
+//   if (!ctx) throw new Error('useAuth must be used within <AuthProvider>')
+//   return ctx
+// }

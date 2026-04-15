@@ -7,6 +7,7 @@ import { LandingPage } from '@/pages/LandingPage'
 import { NewReceiptPage } from '@/pages/NewReceiptPage'
 import { ReceiptPage } from '@/pages/ReceiptPage'
 import { AuthPage } from '@/pages/AuthPage'
+import { OAuthCallbackPage } from '@/pages/OAuthCallbackPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { AccountSettingsPage } from '@/pages/AccountSettingsPage'
 
@@ -26,8 +27,8 @@ export function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/new" element={<NewReceiptPage />} />
               <Route path="/r/:slug" element={<ReceiptPage />} />
-              {/* Auth routes — mode covers: login | signup | forgot-password | reset-password */}
               <Route path="/auth/:mode" element={<AuthPage />} />
+              <Route path="/auth/callback" element={<OAuthCallbackPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/account" element={<AccountSettingsPage />} />
             </Routes>
