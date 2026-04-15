@@ -23,7 +23,7 @@ export function LandingPage() {
 
         <h1 className="font-display text-5xl sm:text-6xl text-ink-900 leading-[1.1] animate-fade-up">
           Split bills<br />
-          <em className="text-sage-600 not-italic">without the drama.</em>
+          <em className="text-sage-600 not-italic">without the headaches.</em>
         </h1>
 
         <p className="text-lg text-ink-500 font-body leading-relaxed animate-fade-up" style={{ animationDelay: '0.1s', opacity: 0, animationFillMode: 'forwards' }}>
