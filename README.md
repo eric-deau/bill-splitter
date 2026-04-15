@@ -117,6 +117,19 @@ Each receipt is a completely independent instance identified by an 8-character n
 - Only the host (matched by `auth.uid()`) can **update** the receipt itself
 - Guest receipts (`host_user_id IS NULL`) can be updated by anyone
 
+### Supabase: password reset setup
+
+After deploying, add your site URL to the Supabase redirect allow-list so the
+password reset email link works correctly.
+
+1. Supabase Dashboard → Authentication → URL Configuration
+2. Under "Redirect URLs", add:
+   - http://localhost:5173/auth/reset-password (local dev)
+   - https://yourdomain.com/auth/reset-password (production)
+
+Without this, Supabase will reject the redirect and the reset link won't land
+on your app's reset page.
+
 ## Next Steps
 
 - [x] Host-only delete controls for members/items
