@@ -118,6 +118,7 @@ function buildSummary(receipt: Receipt, members: Member[], items: LineItem[]): R
       subtotal,
       amount_due: amountDues.get(m.id) ?? 0,
       split_label: splitLabels.get(m.id) ?? '',
+      is_host: m.name === receipt.host_name,
     }
   })
 

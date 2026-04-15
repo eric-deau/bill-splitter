@@ -91,6 +91,7 @@ export interface MemberWithItems extends Member {
   subtotal: number        // sum of their line items
   amount_due: number      // what they actually owe under the active split mode
   split_label: string     // human-readable breakdown shown on card (e.g. "40%" or "2 shares")
+  is_host: boolean        // true if this member is the receipt host
 }
 
 export interface ReceiptSummary {

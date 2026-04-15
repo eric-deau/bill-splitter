@@ -107,7 +107,7 @@ export function MemberCard({
             <span className="font-body font-medium text-ink-900 text-sm truncate">
               {member.name}
             </span>
-            {member.isHost && <Badge variant="success">Host</Badge>}
+            {member.is_host && <Badge variant="success">Host</Badge>}
           </div>
           <p className="text-xs text-ink-400 font-body mt-0.5">
             {member.split_label || 'no items'}
@@ -124,7 +124,7 @@ export function MemberCard({
         </div>
 
         {/* Host-only: remove member button — never shown for the host themselves */}
-        {isHost && !member.isHost && !isSettled && (
+        {isHost && !member.is_host && !isSettled && (
           <div className="shrink-0 ml-1">
             {confirmRemoveMember ? (
               <div className="flex items-center gap-1.5 animate-fade-in">
