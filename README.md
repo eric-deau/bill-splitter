@@ -201,8 +201,8 @@ exchanges the code for a session and lands on /dashboard.
 - [ ] Receipt export to PDF
 - [ ] Push notifications when someone joins
 - [ ] Upgrade guest receipt to account post-creation
-- [ ] Account settings for changing email, password
-- [ ] Cookie sessions
+- [x] Account settings for changing email, password
+- [x] Cookie sessions
 
 ## To Fix
 
