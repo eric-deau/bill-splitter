@@ -16,11 +16,6 @@ export function LandingPage() {
     <div className="space-y-24 pb-16">
       {/* Hero */}
       <section className="pt-12 pb-4 text-center max-w-2xl mx-auto space-y-6">
-        <div className="inline-flex items-center gap-2 bg-sage-50 border border-sage-200 rounded-full px-4 py-1.5 text-xs font-body text-sage-700 animate-fade-in">
-          <span className="size-1.5 rounded-full bg-sage-500 animate-pulse" />
-          Live collaboration — no account needed
-        </div>
-
         <h1 className="font-display text-5xl sm:text-6xl text-ink-900 leading-[1.1] animate-fade-up">
           Split bills<br />
           <em className="text-sage-600 not-italic">without the headaches.</em>
@@ -91,13 +86,8 @@ export function LandingPage() {
       </section>
 
       {/* Feature bullets */}
-      <section className="grid sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
+      <section className="grid sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
         {[
-          {
-            icon: '⚡',
-            title: 'Live updates',
-            body: 'Everyone on the link sees changes instantly via Supabase Realtime — no refreshing.',
-          },
           {
             icon: '🔗',
             title: 'Just share a link',
