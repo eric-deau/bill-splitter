@@ -142,14 +142,15 @@ credentials from each provider. Steps below for Google and GitHub.
 Dashboard → Authentication → URL Configuration → Redirect URLs
 
 Add:
-  http://localhost:5173/auth/callback      ← local dev
-  https://yourdomain.com/auth/callback     ← production
+http://localhost:5173/auth/callback ← local dev
+https://yourdomain.com/auth/callback ← production
 
 ---
 
 ## 2. Google OAuth
 
 ### In Google Cloud Console (console.cloud.google.com):
+
 1. Create a project (or use an existing one)
 2. APIs & Services → OAuth consent screen → configure (External, add your domain)
 3. APIs & Services → Credentials → Create credentials → OAuth 2.0 Client ID
@@ -158,7 +159,9 @@ Add:
 4. Copy the Client ID and Client Secret
 
 ### In Supabase:
+
 Dashboard → Authentication → Providers → Google
+
 - Enable Google
 - Paste Client ID and Client Secret
 - Save
@@ -168,6 +171,7 @@ Dashboard → Authentication → Providers → Google
 ## 3. GitHub OAuth
 
 ### In GitHub (github.com/settings/developers):
+
 1. OAuth Apps → New OAuth App
    - Homepage URL: http://localhost:5173 (update for production)
    - Authorization callback URL: https://<your-supabase-project>.supabase.co/auth/v1/callback
@@ -175,7 +179,9 @@ Dashboard → Authentication → Providers → Google
 3. Copy the Client ID and Client Secret
 
 ### In Supabase:
+
 Dashboard → Authentication → Providers → GitHub
+
 - Enable GitHub
 - Paste Client ID and Client Secret
 - Save
