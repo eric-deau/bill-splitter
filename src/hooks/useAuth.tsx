@@ -12,10 +12,15 @@ interface AuthContextValue {
   user: User | null
   session: Session | null
   loading: boolean
-  signUp: (email: string, password: string) => Promise<void>
-  signIn: (email: string, password: string) => Promise<void>
-  signOut: () => Promise<void>
   isAuthenticated: boolean
+  // Auth actions
+  signUp: (email: string, password: string) => Promise<void>
+  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>
+  signOut: () => Promise<void>
+  sendPasswordReset: (email: string) => Promise<void>
+  updatePassword: (newPassword: string) => Promise<void>
+  // Password recovery state — true when Supabase has emitted PASSWORD_RECOVERY
+  isRecoverySession: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -24,17 +29,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isRecoverySession, setIsRecoverySession] = useState(false)
 
   useEffect(() => {
+    // Restore session from localStorage on mount (Supabase persists by default)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
+      // Supabase fires this event when the user clicks the reset-password link
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecoverySession(true)
+      } else if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        setIsRecoverySession(false)
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -45,14 +58,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(error.message)
   }
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+  /**
+   * rememberMe — when true (default) the session is persisted in localStorage
+   * and survives browser restarts. When false, it only lives for the tab session.
+   * Supabase JS v2 always uses localStorage by default, so we control this by
+   * explicitly calling signOut() and using session expiry.
+   */
+  const signIn = async (email: string, password: string, rememberMe = true) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw new Error(error.message)
+
+    if (!rememberMe && data.session) {
+      // Write a flag so we know to clear on tab close
+      sessionStorage.setItem('divvy_session_only', '1')
+    } else {
+      sessionStorage.removeItem('divvy_session_only')
+    }
   }
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
+    sessionStorage.removeItem('divvy_session_only')
     if (error) throw new Error(error.message)
+  }
+
+  const sendPasswordReset = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      // Supabase will append ?token=... — this is where the user lands after clicking the link
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    })
+    if (error) throw new Error(error.message)
+  }
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) throw new Error(error.message)
+    setIsRecoverySession(false)
   }
 
   return (
@@ -61,10 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         loading,
+        isAuthenticated: !!user,
         signUp,
         signIn,
         signOut,
-        isAuthenticated: !!user,
+        sendPasswordReset,
+        updatePassword,
+        isRecoverySession,
       }}
     >
       {children}

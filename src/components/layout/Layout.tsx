@@ -1,7 +1,7 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
-import { toast } from '@/components/ui/Toast'
+import { AccountDropdown } from '@/components/layout/AccountDropdown'
 import type { ReactNode } from 'react'
 
 interface LayoutProps {
@@ -9,18 +9,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { isAuthenticated, user, signOut } = useAuth()
-  const navigate = useNavigate()
-
-  const handleSignOut = async () => {
-    try {
-      await signOut()
-      toast.success('Signed out')
-      navigate('/')
-    } catch {
-      toast.error('Failed to sign out')
-    }
-  }
+  const { isAuthenticated } = useAuth()
 
   return (
     <div className="min-h-screen bg-cream-50 font-body">
@@ -40,16 +29,9 @@ export function Layout({ children }: LayoutProps) {
             {isAuthenticated ? (
               <>
                 <Link to="/dashboard">
-                  <Button variant="ghost" size="sm">
-                    My receipts
-                  </Button>
+                  <Button variant="ghost" size="sm">My receipts</Button>
                 </Link>
-                <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                  Sign out
-                </Button>
-                <div className="size-7 rounded-full bg-sage-100 flex items-center justify-center text-xs font-medium text-sage-700">
-                  {user?.email?.[0].toUpperCase() ?? '?'}
-                </div>
+                <AccountDropdown />
               </>
             ) : (
               <>
