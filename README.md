@@ -117,7 +117,7 @@ Each receipt is a completely independent instance identified by an 8-character n
 - Only the host (matched by `auth.uid()`) can **update** the receipt itself
 - Guest receipts (`host_user_id IS NULL`) can be updated by anyone
 
-### Supabase: password reset setup
+# Supabase: password reset setup
 
 After deploying, add your site URL to the Supabase redirect allow-list so the
 password reset email link works correctly.
@@ -129,6 +129,64 @@ password reset email link works correctly.
 
 Without this, Supabase will reject the redirect and the reset link won't land
 on your app's reset page.
+
+# Supabase: OAuth provider setup
+
+OAuth requires manual configuration in the Supabase dashboard plus
+credentials from each provider. Steps below for Google and GitHub.
+
+---
+
+## 1. Add redirect URL to Supabase
+
+Dashboard → Authentication → URL Configuration → Redirect URLs
+
+Add:
+  http://localhost:5173/auth/callback      ← local dev
+  https://yourdomain.com/auth/callback     ← production
+
+---
+
+## 2. Google OAuth
+
+### In Google Cloud Console (console.cloud.google.com):
+1. Create a project (or use an existing one)
+2. APIs & Services → OAuth consent screen → configure (External, add your domain)
+3. APIs & Services → Credentials → Create credentials → OAuth 2.0 Client ID
+   - Application type: Web application
+   - Authorised redirect URIs: https://<your-supabase-project>.supabase.co/auth/v1/callback
+4. Copy the Client ID and Client Secret
+
+### In Supabase:
+Dashboard → Authentication → Providers → Google
+- Enable Google
+- Paste Client ID and Client Secret
+- Save
+
+---
+
+## 3. GitHub OAuth
+
+### In GitHub (github.com/settings/developers):
+1. OAuth Apps → New OAuth App
+   - Homepage URL: http://localhost:5173 (update for production)
+   - Authorization callback URL: https://<your-supabase-project>.supabase.co/auth/v1/callback
+2. Generate a new client secret
+3. Copy the Client ID and Client Secret
+
+### In Supabase:
+Dashboard → Authentication → Providers → GitHub
+- Enable GitHub
+- Paste Client ID and Client Secret
+- Save
+
+---
+
+## 4. Verify
+
+After setup, clicking "Google" or "GitHub" on the login page should open
+the provider's consent screen and redirect back to /auth/callback, which
+exchanges the code for a session and lands on /dashboard.
 
 ## Next Steps
 
