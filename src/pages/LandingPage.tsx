@@ -4,9 +4,9 @@ import { useAuth } from '@/hooks/useAuth'
 import { formatCurrency } from '@/lib/utils'
 
 const DEMO_MEMBERS = [
-  { name: 'Alex', color: 'bg-sage-100 text-sage-700', items: ['Salmon roll', 'Sake'], total: 38.50 },
-  { name: 'Jordan', color: 'bg-amber-100 text-amber-600', items: ['Wagyu skewer', 'Matcha'], total: 44.00 },
-  { name: 'Sam', color: 'bg-rose-100 text-rose-600', items: ['Edamame', 'Tempura'], total: 27.50 },
+  { name: 'Monica', color: 'bg-sage-100 text-sage-700', items: ['Salmon roll', 'Sake'], total: 38.50 },
+  { name: 'Hawon', color: 'bg-amber-100 text-amber-600', items: ['Wagyu skewer', 'Matcha'], total: 44.00 },
+  { name: 'Brian', color: 'bg-rose-100 text-rose-600', items: ['Edamame', 'Tempura'], total: 27.50 },
 ]
 
 export function LandingPage() {
@@ -79,7 +79,7 @@ export function LandingPage() {
           {/* Mock footer */}
           <div className="px-5 py-3 bg-cream-50 border-t border-ink-100">
             <p className="text-xs text-ink-500 font-body">
-              Send e-transfer to <span className="font-medium text-ink-800">alex@email.com</span>
+              Send e-transfer to <span className="font-medium text-ink-800">monka@email.com</span>
             </p>
           </div>
         </div>
