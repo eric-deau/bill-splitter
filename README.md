@@ -208,6 +208,7 @@ exchanges the code for a session and lands on /dashboard.
 
 - [x] More members than defined limit can join
 - [x] Can't add items more than the total amount on the bill
+- [ ] Add supabase re-send link OR prevent account creation before supabase link is confirmed
 
 ## TODO
 
