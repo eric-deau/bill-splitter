@@ -42,7 +42,8 @@ export function useReceipt(slug: string | undefined): UseReceiptResult {
   useEffect(() => {
     if (!data?.receipt.id) return
     const unsubscribe = subscribeToReceipt(data.receipt.id, fetch)
-    return unsubscribe
+    // useEffect cleanup must be synchronous — fire the async unsubscribe without awaiting
+    return () => { unsubscribe() }
   }, [data?.receipt.id, fetch])
 
   return { data, loading, error, refetch: fetch }
