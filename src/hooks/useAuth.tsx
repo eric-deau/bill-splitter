@@ -19,6 +19,8 @@ interface AuthContextValue {
   signInWithOAuth: (provider: Provider) => Promise<void>
   signOut: () => Promise<void>
   sendPasswordReset: (email: string) => Promise<void>
+  /** Re-authenticates with the current password. Throws if incorrect. */
+  verifyPassword: (currentPassword: string) => Promise<void>
   updatePassword: (newPassword: string) => Promise<void>
 }
 
@@ -97,6 +99,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(error.message)
   }
 
+  /**
+   * Re-authenticates the current user by signing in with their email + the
+   * supplied password. Throws with a user-facing message if the password is wrong.
+   */
+  const verifyPassword = async (currentPassword: string) => {
+    const email = user?.email
+    if (!email) throw new Error('No authenticated user')
+    const { error } = await supabase.auth.signInWithPassword({ email, password: currentPassword })
+    if (error) {
+      throw new Error('Current password is incorrect')
+    }
+  }
+
   const updatePassword = async (newPassword: string) => {
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     if (error) throw new Error(error.message)
@@ -106,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, session, loading, isAuthenticated: !!user, isRecoverySession,
-      signUp, signIn, signInWithOAuth, signOut, sendPasswordReset, updatePassword,
+      signUp, signIn, signInWithOAuth, signOut, sendPasswordReset, verifyPassword, updatePassword,
     }}>
       {children}
     </AuthContext.Provider>
@@ -118,3 +133,4 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within <AuthProvider>')
   return ctx
 }
+
