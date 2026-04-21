@@ -13,7 +13,7 @@ type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password'
 export function AuthPage() {
   const { mode } = useParams<{ mode: string }>()
   const authMode = (mode as AuthMode) ?? 'login'
-  const { signIn, signUp, signInWithOAuth, sendPasswordReset, updatePassword, isAuthenticated, isRecoverySession } = useAuth()
+  const { signIn, signUp, signInWithOAuth, sendPasswordReset, resendConfirmation, updatePassword, isAuthenticated, isRecoverySession } = useAuth()
   const navigate = useNavigate()
 
   const [email, setEmail] = useState('')
@@ -24,6 +24,9 @@ export function AuthPage() {
   const [submitting, setSubmitting] = useState(false)
   const [oauthLoading, setOauthLoading] = useState<Provider | null>(null)
   const [resetSent, setResetSent] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const [resending, setResending] = useState(false)
 
   // If Supabase fired PASSWORD_RECOVERY, redirect to reset page
   useEffect(() => {
@@ -55,7 +58,14 @@ export function AuthPage() {
       toast.success('Welcome back!')
       navigate('/dashboard')
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Sign in failed')
+      const msg = e instanceof Error ? e.message : ''
+      // Supabase returns this message for unconfirmed accounts
+      if (msg.toLowerCase().includes('email not confirmed')) {
+        setPendingEmail(email)
+        startResendCooldown()
+      } else {
+        toast.error(msg || 'Sign in failed')
+      }
     } finally { setSubmitting(false) }
   }
 
@@ -67,11 +77,33 @@ export function AuthPage() {
     setSubmitting(true)
     try {
       await signUp(email, password)
-      toast.success('Account created! Check your email to confirm.')
-      navigate('/dashboard')
+      setPendingEmail(email)
+      startResendCooldown()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Sign up failed')
     } finally { setSubmitting(false) }
+  }
+
+  const startResendCooldown = () => {
+    setResendCooldown(60)
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) { clearInterval(interval); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+  }
+
+  const handleResend = async () => {
+    if (!pendingEmail || resendCooldown > 0) return
+    setResending(true)
+    try {
+      await resendConfirmation(pendingEmail)
+      toast.success('Confirmation email resent!')
+      startResendCooldown()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not resend email')
+    } finally { setResending(false) }
   }
 
   const handleForgotPassword = async () => {
@@ -118,7 +150,60 @@ export function AuthPage() {
   return (
     <div className="max-w-sm mx-auto py-8 space-y-6">
 
-      {/* ── Login ── */}
+      {/* ── Confirmation pending (shown after signup or unconfirmed login attempt) ── */}
+      {pendingEmail ? (
+        <>
+          <AuthHeader
+            title="Check your inbox"
+            subtitle="We sent a confirmation link to your email address."
+          />
+          <Card>
+            <div className="space-y-4">
+              {/* Email display */}
+              <div className="flex items-center gap-3 bg-cream-100 border border-ink-100 rounded-xl px-4 py-3">
+                <div className="size-8 bg-sage-100 rounded-full flex items-center justify-center shrink-0">
+                  <span className="text-sm">✉️</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-ink-400 font-body">Confirmation sent to</p>
+                  <p className="text-sm font-medium text-ink-900 font-body truncate">{pendingEmail}</p>
+                </div>
+              </div>
+
+              <p className="text-sm text-ink-500 font-body leading-relaxed">
+                Click the link in the email to activate your account. Check your spam folder if you don't see it within a minute.
+              </p>
+
+              {/* Resend button */}
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  loading={resending}
+                  disabled={resendCooldown > 0}
+                  onClick={handleResend}
+                >
+                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend email'}
+                </Button>
+                {resendCooldown === 0 && !resending && (
+                  <span className="text-xs text-ink-400 font-body">Didn't get it?</span>
+                )}
+              </div>
+
+              {/* Wrong email escape hatch */}
+              <div className="border-t border-ink-100 pt-3">
+                <button
+                  onClick={() => { setPendingEmail(null); setEmail(''); setPassword('') }}
+                  className="text-xs text-ink-500 font-body hover:text-ink-700 underline underline-offset-2 transition-colors"
+                >
+                  Wrong email? Go back and try again
+                </button>
+              </div>
+            </div>
+          </Card>
+        </>
+      ) : (
+        <>
       {authMode === 'login' && (
         <>
           <AuthHeader
@@ -329,6 +414,8 @@ export function AuthPage() {
           </Card>
         </>
       )}
+      </> 
+      )}
     </div>
   )
 }
@@ -458,3 +545,4 @@ function GoogleIcon() {
     </svg>
   )
 }
+

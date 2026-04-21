@@ -19,6 +19,7 @@ interface AuthContextValue {
   signInWithOAuth: (provider: Provider) => Promise<void>
   signOut: () => Promise<void>
   sendPasswordReset: (email: string) => Promise<void>
+  resendConfirmation: (email: string) => Promise<void>
   /** Re-authenticates with the current password. Throws if incorrect. */
   verifyPassword: (currentPassword: string) => Promise<void>
   updatePassword: (newPassword: string) => Promise<void>
@@ -99,6 +100,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(error.message)
   }
 
+  /** Resends the signup confirmation email for an unconfirmed account. */
+  const resendConfirmation = async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    if (error) throw new Error(error.message)
+  }
+
   /**
    * Re-authenticates the current user by signing in with their email + the
    * supplied password. Throws with a user-facing message if the password is wrong.
@@ -121,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, session, loading, isAuthenticated: !!user, isRecoverySession,
-      signUp, signIn, signInWithOAuth, signOut, sendPasswordReset, verifyPassword, updatePassword,
+      signUp, signIn, signInWithOAuth, signOut, sendPasswordReset, resendConfirmation, verifyPassword, updatePassword,
     }}>
       {children}
     </AuthContext.Provider>
@@ -133,4 +146,3 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within <AuthProvider>')
   return ctx
 }
-
