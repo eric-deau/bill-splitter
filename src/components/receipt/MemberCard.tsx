@@ -22,7 +22,6 @@ const EMPTY_ITEM: AddItemForm = { name: '', price: '', quantity: '1' }
 export function MemberCard({
   member,
   receipt,
-  evenSplit,
   isHost,
   onUpdate,
   onMemberRemoved,
