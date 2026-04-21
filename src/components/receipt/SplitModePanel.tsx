@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import { Avatar } from '@/components/ui/Avatar'
 import { toast } from '@/components/ui/Toast'
 import { updateSplitMode, updateMemberSplitOverride } from '@/lib/api'
@@ -318,8 +316,6 @@ function MemberOverrideRow({
   onDraftChange,
   onSave,
   saving,
-  receipt,
-  totalShares,
 }: MemberOverrideRowProps) {
   const placeholder = mode === 'percentage' ? '33.3' : mode === 'fixed' ? '0.00' : '1'
   const prefix = mode === 'fixed' ? '$' : undefined
