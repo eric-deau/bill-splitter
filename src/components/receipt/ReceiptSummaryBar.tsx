@@ -12,7 +12,7 @@ interface ReceiptSummaryBarProps {
 }
 
 export function ReceiptSummaryBar({ summary, onSettle, isHost }: ReceiptSummaryBarProps) {
-  const { receipt, subtotal_assigned, is_balanced, even_split, split_remainder, members } = summary
+  const { receipt, is_balanced, even_split, split_remainder, members } = summary
   const [copied, setCopied] = useState(false)
 
   const shareUrl = window.location.href
