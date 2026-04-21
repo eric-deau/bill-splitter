@@ -15,7 +15,6 @@ export function ReceiptPage() {
   const { data, loading, error, refetch } = useReceipt(slug)
   const { user } = useAuth()
   const [addMemberOpen, setAddMemberOpen] = useState(false)
-  const [settling, setSettling] = useState(false)
 
   // Optimistic removal: IDs of members removed locally before Realtime confirms
   const [removedMemberIds, setRemovedMemberIds] = useState<Set<string>>(new Set())
@@ -46,16 +45,13 @@ export function ReceiptPage() {
   const handleSettle = async () => {
     if (!data) return
     if (!window.confirm('Mark this receipt as settled? This cannot be undone.')) return
-    setSettling(true)
     try {
       await settleReceipt(data.receipt.id)
       toast.success('Receipt settled!')
       refetch()
     } catch {
       toast.error('Failed to settle receipt')
-    } finally {
-      setSettling(false)
-    }
+    } 
   }
 
   if (loading) {
