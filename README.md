@@ -213,3 +213,4 @@ exchanges the code for a session and lands on /dashboard.
 ## TODO
 
 - [x] Add logic for when users add items in equal split mode, adjust the costs of what other users owe
+- [ ] Add feature for marking users that have or have not paid yet
